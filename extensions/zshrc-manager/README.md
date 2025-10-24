@@ -84,6 +84,74 @@ A powerful Raycast extension for managing your `~/.zshrc` configuration file. Vi
 - Search by name, command, section, or value
 - Results update in real-time as you type
 
+## Custom Section Patterns
+
+The extension automatically detects sections in your zshrc file using built-in patterns. You can also configure custom patterns to match your preferred section format.
+
+### Built-in Section Formats
+
+The extension recognizes these default section formats:
+
+- `# Section: Name` - Simple labeled sections
+- `# --- Name --- #` - Dashed sections
+- `# [Name]` - Bracketed sections
+- `## Name` - Hash sections
+- `# @start Name` / `# @end Name` - Custom start/end tags
+- Function definitions (treated as sections)
+
+### Configuring Custom Patterns
+
+You can configure custom section patterns in Raycast Preferences:
+
+1. Open Raycast Preferences
+2. Go to Extensions → Zshrc Manager
+3. Configure your custom patterns
+
+#### Custom Header Pattern
+
+Enable a custom regex pattern for section headers:
+
+- **Enable Custom Header Pattern**: Toggle to enable
+- **Custom Header Pattern**: Regex pattern with one capture group for the section name
+
+Example: `^#\s+(.+)$` matches sections like `# My Section`
+
+#### Custom Start/End Patterns
+
+Enable custom regex patterns for section start and end markers:
+
+- **Enable Custom Start/End Patterns**: Toggle to enable
+- **Custom Start Pattern**: Regex pattern with one capture group for the section name
+- **Custom End Pattern**: Regex pattern for end markers
+
+Example:
+- Start: `^#\s*start\s+(.+)$` matches `# start My Section`
+- End: `^#\s*end\s+(.+)$` matches `# end My Section`
+
+### Pattern Requirements
+
+- Patterns must include exactly **one capture group** `(...)` for the section name
+- Patterns are automatically anchored to the start of the line (`^`)
+- Matching is case-insensitive
+- Invalid patterns are ignored, falling back to defaults
+
+### Example Custom Patterns
+
+```regex
+# Simple header with one word
+^#\s+(.+)$
+
+# Double hash header
+^##\s+(.+)$
+
+# Bracketed with specific format
+^#\s*\[\s*(.+?)\s*\]\s*$
+
+# Start/end markers
+^#\s*start\s+(.+)$
+^#\s*end\s+(.+)$
+```
+
 ## Requirements
 
 - **Shell**: Zsh (Z shell)
