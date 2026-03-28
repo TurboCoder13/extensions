@@ -2,23 +2,26 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "renaming",
   "title": "Renaming",
-  "description": "Renaming is a simple tool to rename files and folders in a batch.",
-  "version": "1.0.1",
+  "description": "A powerful batch file renaming tool with regex support, case transformation, undo history, and presets.",
+  "version": "2.0.0",
   "keywords": [
     "rename",
     "finder",
     "file",
     "folder",
-    "directory",
+    "batch",
+    "regex",
+    "case",
+    "undo",
     "productivity",
-    "utility",
-    "system"
+    "utility"
   ],
   "icon": "renaming-icon.png",
   "author": "theo_daguier",
   "contributors": [
     "pernielsentikaer",
-    "ridemountainpig"
+    "ridemountainpig",
+    "TurboCoder13"
   ],
   "categories": [
     "Productivity",
@@ -30,19 +33,38 @@
     {
       "name": "index",
       "title": "Rename File(s)",
-      "description": "Rename file(s) in a batch.",
+      "description": "Batch rename files with prefix, suffix, numbering, and case transformation.",
       "mode": "view"
     },
     {
       "name": "replace",
       "title": "Replace File(s) Characters",
-      "description": "Replace characters in file(s) names.",
+      "description": "Find and replace characters in filenames with optional regex.",
+      "mode": "view"
+    },
+    {
+      "name": "history",
+      "title": "Rename History",
+      "description": "View and undo recent rename operations.",
+      "mode": "view"
+    },
+    {
+      "name": "presets",
+      "title": "Rename Presets",
+      "description": "Manage saved rename configurations.",
+      "mode": "view"
+    },
+    {
+      "name": "clipboard-rename",
+      "title": "Clipboard Rename",
+      "description": "Rename files using names from clipboard.",
       "mode": "view"
     }
   ],
   "dependencies": {
     "@raycast/api": "^1.65.1",
-    "@raycast/utils": "^1.12.5"
+    "@raycast/utils": "^1.12.5",
+    "safe-regex": "^2.1.1"
   },
   "devDependencies": {
     "@raycast/eslint-config": "^1.0.6",

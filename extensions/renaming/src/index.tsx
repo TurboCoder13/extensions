@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { runAppleScript, useCachedState } from "@raycast/utils";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Form,
   ActionPanel,
@@ -8,26 +7,42 @@ import {
   popToRoot,
   showToast,
   Toast,
+  confirmAlert,
+  Alert,
+  Icon,
   getSelectedFinderItems,
 } from "@raycast/api";
+import path, { basename, dirname, extname } from "path";
 import { statSync } from "fs";
-import { basename, extname } from "path";
+import { getFileInfo, checkConflicts } from "./lib/files";
+import { saveToHistory, undoLastRename } from "./lib/history";
+import { withProgress } from "./lib/progress";
+import { transformCase, CASE_STYLES, getCaseStyleLabel } from "./lib/case-transform";
+import { PREVIEW_LIMIT } from "./lib/constants";
+import { UndoAction } from "./components/undo-action";
+import { ResultsView } from "./components/results-view";
+import { getUserFriendlyErrorMessage } from "./lib/errors";
+import { CaseStyle, type RenameOperation, type FileInfo, type RenameResult } from "./types";
 
 export default function Command() {
-  const [files, setFiles] = useState<string[]>([]);
+  const [files, setFiles] = useState<FileInfo[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [newName, setNewName] = useState<string>("");
   const [prefix, setPrefix] = useState<string>("");
   const [suffix, setSuffix] = useState<string>("");
-  const [preserveName, setPreserveName] = useCachedState<boolean>("preserveName", false);
-  const [preview, setPreview] = useState<string>("");
+  const [preserveName, setPreserveName] = useState<boolean>(false);
   const [separator, setSeparator] = useState<string>("_");
   const [indexSeparator, setIndexSeparator] = useState<string>("-");
+  const [caseStyle, setCaseStyle] = useState<CaseStyle>(CaseStyle.UNCHANGED);
+  const [operationResults, setOperationResults] = useState<RenameResult[] | null>(null);
+  const [pendingOperations, setPendingOperations] = useState<RenameOperation[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const getSelectedFiles = async () => {
+  const getSelectedFiles = useCallback(async () => {
+    setIsLoading(true);
     try {
-      const files = await getSelectedFinderItems();
-      const fileList = files.map((file) => file.path);
-      console.log("Fetched files:", fileList);
+      const items = await getSelectedFinderItems();
+      const fileList = items.map((item) => item.path);
 
       if (fileList.length === 0) {
         await showToast({
@@ -38,7 +53,8 @@ export default function Command() {
         return;
       }
 
-      setFiles(fileList);
+      const fileInfos = await Promise.all(fileList.map((f) => getFileInfo(f)));
+      setFiles(fileInfos);
     } catch (error) {
       console.error(error);
       await showToast({
@@ -47,8 +63,14 @@ export default function Command() {
         message: "Please make sure a Finder window is open and files are selected",
       });
       popToRoot();
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    getSelectedFiles();
+  }, [getSelectedFiles]);
 
   const handleSeparatorChange = async (separatorType: "separator" | "indexSeparator", value: string) => {
     if (value.includes("/")) {
@@ -72,117 +94,247 @@ export default function Command() {
     }
   };
 
-  useEffect(() => {
-    getSelectedFiles();
-  }, []);
+  const generateNewName = useCallback(
+    (file: FileInfo, index: number): string => {
+      const prefixWithSep = prefix ? `${prefix}${separator}` : "";
+      const suffixWithSep = suffix ? `${separator}${suffix}` : "";
 
-  const generateNewName = (index: number): string => {
-    const selectedFile = files[index];
-    if (!selectedFile) {
-      // Handle the case where files[index] is undefined
-      return "";
-    }
-
-    const isDirectory = statSync(selectedFile).isDirectory();
-
-    const fullName = basename(selectedFile);
-    const extension = isDirectory ? "" : extname(selectedFile);
-    const baseName = isDirectory ? fullName : basename(selectedFile, extension);
-
-    const prefixWithUnderscore = prefix ? `${prefix}${separator}` : "";
-    const suffixWithUnderscore = suffix ? `${separator}${suffix}` : "";
-
-    const newBaseName = preserveName
-      ? `${prefixWithUnderscore}${baseName}${suffixWithUnderscore}`
-      : `${prefixWithUnderscore}${newName}${indexSeparator}${index + 1}${suffixWithUnderscore}`;
-
-    return isDirectory || !extension ? newBaseName : `${newBaseName}${extension}`;
-  };
-
-  const renameFiles = async () => {
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const newNameWithExtension = generateNewName(i);
-        const escapedFilePath = file.replaceAll('"', '\\"');
-        const escapedNewName = newNameWithExtension.replaceAll('"', '\\"');
-
-        await runAppleScript(`
-          tell application "Finder"
-            set theItem to POSIX file "${escapedFilePath}" as alias
-            set name of theItem to "${escapedNewName}"
-          end tell
-        `);
+      let newBaseName: string;
+      if (preserveName) {
+        newBaseName = `${prefixWithSep}${file.baseName}${suffixWithSep}`;
+      } else {
+        newBaseName = `${prefixWithSep}${newName}${indexSeparator}${index + 1}${suffixWithSep}`;
       }
 
-      console.log("Finished renaming files.");
-      setPreserveName(false);
-      await closeMainWindow();
-      await popToRoot();
-    } catch (error) {
-      console.error(error);
+      // Apply case transformation
+      newBaseName = transformCase(newBaseName, caseStyle);
 
+      return file.isDirectory || !file.extension ? newBaseName : `${newBaseName}${file.extension}`;
+    },
+    [newName, prefix, suffix, preserveName, separator, indexSeparator, caseStyle],
+  );
+
+  // Preview
+  const preview = useMemo(() => {
+    if (files.length === 0) return "";
+    const count = Math.min(files.length, PREVIEW_LIMIT);
+    const lines: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const file = files[i]!;
+      const newFileName = generateNewName(file, i);
+      lines.push(`${file.name} → ${newFileName}`);
+    }
+    if (files.length > count) {
+      lines.push(`...and ${files.length - count} more files`);
+    }
+    return lines.join("\n");
+  }, [files, generateNewName]);
+
+  const renameFiles = async () => {
+    if (files.length === 0) return;
+
+    // Build operations
+    const operations: RenameOperation[] = files.map((file, index) => {
+      const newFileName = generateNewName(file, index);
+      return {
+        oldPath: file.path,
+        newName: newFileName,
+        newPath: path.join(dirname(file.path), newFileName),
+      };
+    });
+
+    // Check for conflicts
+    const conflicts = await checkConflicts(operations);
+    if (conflicts.length > 0) {
       await showToast({
         style: Toast.Style.Failure,
-        title: "Failed to rename files",
-        message: (error as Error).message,
+        title: "Conflicts detected",
+        message: conflicts.slice(0, 3).join("; "),
+      });
+      return;
+    }
+
+    // Confirm batch operation for multiple files
+    if (operations.length > 1) {
+      const confirmed = await confirmAlert({
+        title: `Rename ${operations.length} Files?`,
+        message: preview,
+        primaryAction: {
+          title: "Rename All",
+          style: Alert.ActionStyle.Destructive,
+        },
+        dismissAction: {
+          title: "Cancel",
+        },
+      });
+
+      if (!confirmed) return;
+    }
+
+    setIsProcessing(true);
+    setPendingOperations(operations);
+
+    try {
+      const description = preserveName
+        ? `Added prefix/suffix to ${operations.length} file${operations.length !== 1 ? "s" : ""}`
+        : `Renamed ${operations.length} file${operations.length !== 1 ? "s" : ""} to "${newName}"`;
+
+      const result = await withProgress(operations, {
+        actionName: "Renaming",
+        itemLabel: "file",
+      });
+
+      if (result.successfulOps.length > 0) {
+        await saveToHistory(description, result.successfulOps);
+      }
+
+      setOperationResults(result.results);
+    } catch (error) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Rename failed",
+        message: getUserFriendlyErrorMessage(error),
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleClose = async () => {
+    await closeMainWindow();
+    await popToRoot();
+  };
+
+  const handleUndo = async () => {
+    try {
+      await undoLastRename();
+    } catch (err) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Undo failed",
+        message: err instanceof Error ? err.message : String(err),
       });
     }
   };
 
-  useEffect(() => {
-    setPreview(generateNewName(0));
-  }, [newName, prefix, suffix, preserveName, files, separator, indexSeparator]);
+  const handleRetryFailed = async () => {
+    if (!operationResults) return;
+
+    const failedOldPaths = new Set(operationResults.filter((r) => !r.success).map((r) => r.oldPath));
+    const failedOperations = pendingOperations.filter((op) => failedOldPaths.has(op.oldPath));
+
+    if (failedOperations.length === 0) return;
+
+    setIsProcessing(true);
+
+    try {
+      const result = await withProgress(failedOperations, {
+        actionName: "Retrying",
+        itemLabel: "file",
+      });
+
+      if (result.successfulOps.length > 0) {
+        await saveToHistory(`Retried ${result.successfulOps.length} file(s)`, result.successfulOps);
+      }
+
+      const newResults = operationResults.map((oldResult) => {
+        if (oldResult.success) return oldResult;
+        const retryResult = result.results.find((r) => r.oldPath === oldResult.oldPath);
+        return retryResult || oldResult;
+      });
+
+      setOperationResults(newResults);
+    } catch (error) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Retry failed",
+        message: getUserFriendlyErrorMessage(error),
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Show results view after operation completes
+  if (operationResults) {
+    const hasFailures = operationResults.some((r) => !r.success);
+    return (
+      <ResultsView
+        results={operationResults}
+        onClose={handleClose}
+        onUndo={handleUndo}
+        onRetryFailed={hasFailures ? handleRetryFailed : undefined}
+        isLoading={isProcessing}
+      />
+    );
+  }
 
   return (
-    <>
-      <Form
-        actions={
-          <ActionPanel>
-            <Action.SubmitForm title="Rename" onSubmit={renameFiles} />
-          </ActionPanel>
-        }
-      >
-        {files.length > 1 && (
-          <>
+    <Form
+      isLoading={isLoading || isProcessing}
+      actions={
+        <ActionPanel>
+          <Action.SubmitForm title="Rename" onSubmit={renameFiles} />
+          <UndoAction />
+        </ActionPanel>
+      }
+    >
+      {files.length > 0 && (
+        <>
+          <Form.Description
+            title="Selected Files"
+            text={`${files.length} file${files.length !== 1 ? "s" : ""} selected`}
+          />
+
+          {files.length > 1 && (
             <Form.Checkbox
               id="preserveName"
               label="Preserve base name"
               value={preserveName}
               onChange={setPreserveName}
             />
-            {!preserveName && (
-              <Form.TextField
-                id="newName"
-                title="New Name"
-                value={newName}
-                onChange={setNewName}
-                placeholder="Enter new name"
-              />
-            )}
-            <Form.TextField id="prefix" title="Prefix" value={prefix} onChange={setPrefix} placeholder="Enter prefix" />
-            <Form.TextField id="suffix" title="Suffix" value={suffix} onChange={setSuffix} placeholder="Enter suffix" />
+          )}
+
+          {!preserveName && (
             <Form.TextField
-              id="separator"
-              title="Separator"
-              value={separator}
-              onChange={(newValue) => handleSeparatorChange("separator", newValue)}
-              placeholder="Enter separator"
+              id="newName"
+              title="New Name"
+              value={newName}
+              onChange={setNewName}
+              placeholder="Enter new name"
             />
-            {!preserveName && (
-              <Form.TextField
-                id="indexSeparator"
-                title="Index Separator"
-                value={indexSeparator}
-                onChange={(newValue) => handleSeparatorChange("indexSeparator", newValue)}
-                placeholder="Enter Index separator"
-              />
-            )}
-            <Form.Description title="Preview" text={preview} />
-          </>
-        )}
-        <Form.Separator />
-      </Form>
-    </>
+          )}
+
+          <Form.TextField id="prefix" title="Prefix" value={prefix} onChange={setPrefix} placeholder="Enter prefix" />
+          <Form.TextField id="suffix" title="Suffix" value={suffix} onChange={setSuffix} placeholder="Enter suffix" />
+          <Form.TextField
+            id="separator"
+            title="Separator"
+            value={separator}
+            onChange={(newValue) => handleSeparatorChange("separator", newValue)}
+            placeholder="Enter separator"
+          />
+
+          {!preserveName && (
+            <Form.TextField
+              id="indexSeparator"
+              title="Index Separator"
+              value={indexSeparator}
+              onChange={(newValue) => handleSeparatorChange("indexSeparator", newValue)}
+              placeholder="Enter Index separator"
+            />
+          )}
+
+          <Form.Dropdown id="caseStyle" title="Case Style" value={caseStyle} onChange={(v) => setCaseStyle(v as CaseStyle)}>
+            {CASE_STYLES.map((style) => (
+              <Form.Dropdown.Item key={style} value={style} title={getCaseStyleLabel(style)} />
+            ))}
+          </Form.Dropdown>
+
+          <Form.Separator />
+          <Form.Description title="Preview" text={preview || "Configure rename options above"} />
+        </>
+      )}
+    </Form>
   );
 }
