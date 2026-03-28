@@ -33,7 +33,9 @@ export function UndoAction({ onUndo }: UndoActionProps) {
         try {
           const success = await undoLastRename();
           if (success) {
-            setUndoCount((prev) => Math.max(0, prev - 1));
+            // Reload actual count -- partial undos may keep the entry
+            const newCount = await getUndoCount();
+            setUndoCount(newCount);
             onUndo?.();
           }
         } catch (err) {

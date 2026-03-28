@@ -19,7 +19,9 @@ export async function getHistory(): Promise<RenameHistoryEntry[]> {
   if (!data) return [];
 
   try {
-    return JSON.parse(data) as RenameHistoryEntry[];
+    const parsed: unknown = JSON.parse(data);
+    if (!Array.isArray(parsed)) return [];
+    return parsed as RenameHistoryEntry[];
   } catch {
     return [];
   }

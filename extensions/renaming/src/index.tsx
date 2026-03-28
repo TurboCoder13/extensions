@@ -13,7 +13,7 @@ import {
   confirmAlert,
   Alert,
 } from "@raycast/api";
-import path, { basename, dirname } from "path";
+import path, { dirname } from "path";
 import type { FileInfo, RenameOperation, RenameResult } from "./types";
 import { CaseStyle } from "./types";
 import { getFileInfo, checkConflicts } from "./lib/files";
@@ -285,7 +285,12 @@ export default function Command() {
           <Form.Description title="Selected Files" text={`${files.length} file${files.length !== 1 ? "s" : ""}`} />
 
           {files.length > 1 && (
-            <Form.Checkbox id="preserveName" label="Preserve base name" value={preserveName} onChange={setPreserveName} />
+            <Form.Checkbox
+              id="preserveName"
+              label="Preserve base name"
+              value={preserveName}
+              onChange={setPreserveName}
+            />
           )}
 
           {!preserveName && (
@@ -317,7 +322,12 @@ export default function Command() {
             />
           )}
 
-          <Form.Dropdown id="caseStyle" title="Case Style" value={caseStyle} onChange={(v) => setCaseStyle(v as CaseStyle)}>
+          <Form.Dropdown
+            id="caseStyle"
+            title="Case Style"
+            value={caseStyle}
+            onChange={(v) => setCaseStyle(v as CaseStyle)}
+          >
             {Object.entries(CASE_STYLE_LABELS).map(([value, label]) => (
               <Form.Dropdown.Item key={value} value={value} title={label} />
             ))}

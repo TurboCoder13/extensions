@@ -262,8 +262,7 @@ export async function batchRename(
     .map((op, i) => ({ op, originalIndex: i }))
     .filter(({ originalIndex }) => !results[originalIndex]); // skip already-failed
   indexed.sort(
-    (a, b) =>
-      path.normalize(b.op.oldPath).split(path.sep).length - path.normalize(a.op.oldPath).split(path.sep).length,
+    (a, b) => path.normalize(b.op.oldPath).split(path.sep).length - path.normalize(a.op.oldPath).split(path.sep).length,
   );
 
   for (let i = 0; i < indexed.length; i++) {
