@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { pathsToFileInfos } from "../hooks/use-selected-files";
 import { scanDirectoryForFiles, scanDirectoryRecursive, deduplicatePaths } from "../lib/files";
 import { buildAutoSummary } from "../lib/selection-summary";
+import { log } from "../lib/logger";
 import { SelectionMode, type FileInfo } from "../types";
 import { resolve } from "path";
 
@@ -143,7 +144,7 @@ export function FileSelectionForm({ onFilesSelected, mode = SelectionMode.ALL }:
           setSelectedExtensions(exts);
         }
       } catch (err) {
-        console.error("Failed to resolve file paths:", err);
+        log.files.error("Failed to resolve file paths", err);
         if (!cancelled) {
           setResolvedFiles([]);
           setHasDirs(false);

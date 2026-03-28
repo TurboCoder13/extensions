@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { List, ActionPanel, Action, Icon, confirmAlert, Alert, showToast, Toast, Color } from "@raycast/api";
 import { getHistory, undoToPoint, clearHistory } from "../lib/history";
 import { HistoryDetailView } from "../components/history-detail-view";
+import { log } from "../lib/logger";
 import type { RenameHistoryEntry } from "../types";
 
 export default function Command() {
@@ -14,7 +15,7 @@ export default function Command() {
       const entries = await getHistory();
       setHistory(entries);
     } catch (err) {
-      console.error("Failed to load history:", err);
+      log.history.error("Failed to load history", err);
       setHistory([]);
       await showToast({
         style: Toast.Style.Failure,

@@ -5,6 +5,7 @@
 import { Action, Icon } from "@raycast/api";
 import { useState, useEffect } from "react";
 import { getUndoCount, undoLastRename } from "../lib/history";
+import { log } from "../lib/logger";
 
 interface UndoActionProps {
   onUndo?: () => void;
@@ -19,7 +20,7 @@ export function UndoAction({ onUndo }: UndoActionProps) {
   useEffect(() => {
     getUndoCount()
       .then(setUndoCount)
-      .catch((err) => console.error("Failed to get undo count:", err));
+      .catch((err) => log.history.error("Failed to get undo count", err));
   }, []);
 
   if (undoCount === 0) return null;
@@ -37,7 +38,7 @@ export function UndoAction({ onUndo }: UndoActionProps) {
             onUndo?.();
           }
         } catch (err) {
-          console.error("Undo failed:", err);
+          log.history.error("Undo failed", err);
         }
       }}
     />
