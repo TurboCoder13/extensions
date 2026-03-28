@@ -38,11 +38,18 @@
       "title": "Replace File(s) Characters",
       "description": "Replace characters in file(s) names.",
       "mode": "view"
+    },
+    {
+      "name": "history",
+      "title": "Rename History",
+      "description": "View and undo recent rename operations.",
+      "mode": "view"
     }
   ],
   "dependencies": {
     "@raycast/api": "^1.65.1",
-    "@raycast/utils": "^1.12.5"
+    "@raycast/utils": "^1.12.5",
+    "safe-regex": "^2.1.1"
   },
   "devDependencies": {
     "@raycast/eslint-config": "^1.0.6",
