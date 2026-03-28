@@ -10,14 +10,15 @@ import {
   getSelectedFinderItems,
   useNavigation,
 } from "@raycast/api";
-import { basename, dirname, extname, join } from "path";
+import { basename, dirname, join } from "path";
 import { getFileInfo, batchRename } from "./lib/files";
 import { validateSeparator } from "./lib/validation";
 import { CaseStyle } from "./types/enums";
 import { CASE_STYLE_LABELS } from "./lib/constants";
 import { transformCase } from "./lib/case-transform";
 import { ResultsView } from "./components/results-view";
-import type { FileInfo, RenameOperation, RenameResult } from "./types";
+import { log } from "./lib/logger";
+import type { FileInfo, RenameOperation } from "./types";
 
 export default function Command() {
   const [files, setFiles] = useState<FileInfo[]>([]);
@@ -49,7 +50,7 @@ export default function Command() {
       const fileInfos = await Promise.all(paths.map(getFileInfo));
       setFiles(fileInfos);
     } catch (error) {
-      console.error(error);
+      log.rename.error("Failed to fetch selected files", error);
       await showToast({
         style: Toast.Style.Failure,
         title: "Failed to fetch files",
@@ -61,30 +62,27 @@ export default function Command() {
     }
   }, []);
 
-  const handleSeparatorChange = useCallback(
-    async (separatorType: "separator" | "indexSeparator", value: string) => {
-      const validation = validateSeparator(value);
-      if (!validation.valid) {
-        if (separatorType === "separator") {
-          setSeparator("");
-        } else {
-          setIndexSeparator("");
-        }
-        await showToast({
-          style: Toast.Style.Failure,
-          title: "Invalid separator",
-          message: validation.error,
-        });
+  const handleSeparatorChange = useCallback(async (separatorType: "separator" | "indexSeparator", value: string) => {
+    const validation = validateSeparator(value);
+    if (!validation.valid) {
+      if (separatorType === "separator") {
+        setSeparator("");
       } else {
-        if (separatorType === "separator") {
-          setSeparator(value);
-        } else {
-          setIndexSeparator(value);
-        }
+        setIndexSeparator("");
       }
-    },
-    [],
-  );
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Invalid separator",
+        message: validation.error,
+      });
+    } else {
+      if (separatorType === "separator") {
+        setSeparator(value);
+      } else {
+        setIndexSeparator(value);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     getSelectedFiles();
@@ -163,7 +161,7 @@ export default function Command() {
         />,
       );
     } catch (error) {
-      console.error(error);
+      log.rename.error("Failed to rename files", error);
       await showToast({
         style: Toast.Style.Failure,
         title: "Failed to rename files",
@@ -187,12 +185,7 @@ export default function Command() {
     >
       {files.length > 1 && (
         <>
-          <Form.Checkbox
-            id="preserveName"
-            label="Preserve base name"
-            value={preserveName}
-            onChange={setPreserveName}
-          />
+          <Form.Checkbox id="preserveName" label="Preserve base name" value={preserveName} onChange={setPreserveName} />
           {!preserveName && (
             <Form.TextField
               id="newName"
@@ -220,7 +213,12 @@ export default function Command() {
               placeholder="Enter Index separator"
             />
           )}
-          <Form.Dropdown id="caseStyle" title="Case Style" value={caseStyle} onChange={(v) => setCaseStyle(v as CaseStyle)}>
+          <Form.Dropdown
+            id="caseStyle"
+            title="Case Style"
+            value={caseStyle}
+            onChange={(v) => setCaseStyle(v as CaseStyle)}
+          >
             {Object.values(CaseStyle).map((style) => (
               <Form.Dropdown.Item key={style} value={style} title={CASE_STYLE_LABELS[style]} />
             ))}

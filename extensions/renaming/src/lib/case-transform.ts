@@ -48,9 +48,10 @@ export function transformCase(str: string, style: CaseStyle): string {
 
 /**
  * Title Case: Each Word Is Capitalized
+ * Uses unicode-aware word boundary matching.
  */
 function toTitleCase(str: string): string {
-  return str.replace(/\b\w+/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+  return str.replace(/[\p{L}\p{N}]+/gu, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
 }
 
 /**
@@ -106,14 +107,15 @@ function toKebabCase(str: string): string {
 }
 
 /**
- * Split a string into words, handling various formats
+ * Split a string into words, handling various formats.
+ * Uses unicode-aware patterns so accented/international characters are preserved.
  */
 function splitIntoWords(str: string): string[] {
   // Handle camelCase/PascalCase by inserting spaces before capitals
-  const withSpaces = str.replace(/([a-z])([A-Z])/g, "$1 $2");
+  const withSpaces = str.replace(/(\p{Ll})(\p{Lu})/gu, "$1 $2");
 
-  // Split on non-alphanumeric characters
-  const words = withSpaces.split(/[^a-zA-Z0-9]+/).filter((word) => word.length > 0);
+  // Split on characters that are not letters, digits, or combining marks
+  const words = withSpaces.split(/[^\p{L}\p{N}\p{M}]+/u).filter((word) => word.length > 0);
 
   return words;
 }

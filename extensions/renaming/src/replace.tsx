@@ -14,6 +14,7 @@ import { basename, dirname, join } from "path";
 import { getFileInfo, batchRename } from "./lib/files";
 import { validateRegexPattern } from "./lib/regex-safety";
 import { ResultsView } from "./components/results-view";
+import { log } from "./lib/logger";
 import type { FileInfo, RenameOperation } from "./types";
 
 export default function Command() {
@@ -42,7 +43,7 @@ export default function Command() {
       const fileInfos = await Promise.all(paths.map(getFileInfo));
       setFiles(fileInfos);
     } catch (error) {
-      console.error(error);
+      log.rename.error("Failed to fetch selected files", error);
       await showToast({
         style: Toast.Style.Failure,
         title: "Failed to fetch files",
@@ -147,7 +148,7 @@ export default function Command() {
         />,
       );
     } catch (error) {
-      console.error(error);
+      log.rename.error("Failed to replace file characters", error);
       await showToast({
         style: Toast.Style.Failure,
         title: "Failed to replace file characters",
