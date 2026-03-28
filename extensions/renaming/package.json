@@ -2,23 +2,26 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "renaming",
   "title": "Renaming",
-  "description": "Renaming is a simple tool to rename files and folders in a batch.",
-  "version": "1.0.1",
+  "description": "A powerful batch file renaming tool with regex support, case transformation, undo history, and presets.",
+  "version": "2.0.0",
   "keywords": [
     "rename",
     "finder",
     "file",
     "folder",
-    "directory",
+    "batch",
+    "regex",
+    "case",
+    "undo",
     "productivity",
-    "utility",
-    "system"
+    "utility"
   ],
   "icon": "renaming-icon.png",
   "author": "theo_daguier",
   "contributors": [
     "pernielsentikaer",
-    "ridemountainpig"
+    "ridemountainpig",
+    "TurboCoder13"
   ],
   "categories": [
     "Productivity",
@@ -38,19 +41,51 @@
       "title": "Replace File(s) Characters",
       "description": "Replace characters in file(s) names.",
       "mode": "view"
+    },
+    {
+      "name": "history",
+      "title": "Rename History",
+      "description": "View and undo recent rename operations.",
+      "mode": "view"
+    },
+    {
+      "name": "presets",
+      "title": "Rename Presets",
+      "description": "Manage saved rename configurations.",
+      "mode": "view"
+    },
+    {
+      "name": "clipboard-rename",
+      "title": "Clipboard Rename",
+      "description": "Rename files using names from clipboard.",
+      "mode": "view"
+    },
+    {
+      "name": "ai-suggest",
+      "title": "AI Smart Rename",
+      "description": "Generate descriptive names using AI.",
+      "mode": "view"
+    },
+    {
+      "name": "hub",
+      "title": "Renaming",
+      "description": "All renaming tools in one place.",
+      "mode": "view"
     }
   ],
   "dependencies": {
-    "@raycast/api": "^1.65.1",
-    "@raycast/utils": "^1.12.5"
+    "@raycast/api": "^1.104.4",
+    "@raycast/utils": "^2.2.2",
+    "exifreader": "^4.36.1",
+    "safe-regex": "^2.1.1"
   },
   "devDependencies": {
     "@raycast/eslint-config": "^1.0.6",
-    "@types/node": "20.8.10",
-    "@types/react": "18.2.27",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.10",
     "eslint": "^8.51.0",
     "prettier": "^3.0.3",
-    "typescript": "^5.2.2"
+    "typescript": "^5.4.0"
   },
   "scripts": {
     "build": "ray build -e dist",
