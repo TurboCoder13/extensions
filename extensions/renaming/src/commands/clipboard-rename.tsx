@@ -5,7 +5,7 @@
  * Supports newline, tab, and comma-separated formats.
  */
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Form,
   ActionPanel,
@@ -20,8 +20,13 @@ import {
   Alert,
   getSelectedFinderItems,
 } from "@raycast/api";
-import path, { basename, dirname } from "path";
-import { parseClipboard, mapClipboardToFiles, getClipboardMappingStatus, getClipboardFormatHint } from "../lib/clipboard";
+import path, { dirname } from "path";
+import {
+  parseClipboard,
+  mapClipboardToFiles,
+  getClipboardMappingStatus,
+  getClipboardFormatHint,
+} from "../lib/clipboard";
 import { getFileInfo, checkConflicts } from "../lib/files";
 import { saveToHistory, undoLastRename } from "../lib/history";
 import { withProgress } from "../lib/progress";
@@ -29,7 +34,13 @@ import { UndoAction } from "../components/undo-action";
 import { ResultsView } from "../components/results-view";
 import { getUserFriendlyErrorMessage } from "../lib/errors";
 import { log } from "../lib/logger";
-import type { FileInfo, RenameOperation, RenameResult, ClipboardParseResult } from "../types";
+import {
+  ClipboardFormat,
+  type FileInfo,
+  type RenameOperation,
+  type RenameResult,
+  type ClipboardParseResult,
+} from "../types";
 
 export default function ClipboardRenameCommand() {
   const [files, setFiles] = useState<FileInfo[]>([]);
@@ -37,7 +48,6 @@ export default function ClipboardRenameCommand() {
   const [isLoading, setIsLoading] = useState(true);
   const [preserveExtension, setPreserveExtension] = useState(true);
   const [operationResults, setOperationResults] = useState<RenameResult[] | null>(null);
-  const [pendingOperations, setPendingOperations] = useState<RenameOperation[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Load files and clipboard on mount
@@ -75,7 +85,7 @@ export default function ClipboardRenameCommand() {
             });
           }
         } else {
-          setClipboardResult({ names: [], format: "newline" as never, hasExtensions: false });
+          setClipboardResult({ names: [], format: ClipboardFormat.NEWLINE, hasExtensions: false });
           await showToast({
             style: Toast.Style.Failure,
             title: "Clipboard is empty",
@@ -178,7 +188,6 @@ export default function ClipboardRenameCommand() {
     }
 
     setIsProcessing(true);
-    setPendingOperations(operations);
 
     try {
       const noun = operations.length === 1 ? "file" : "files";
@@ -224,14 +233,8 @@ export default function ClipboardRenameCommand() {
 
   // Show results view after operation completes
   if (operationResults) {
-    const hasFailures = operationResults.some((r) => !r.success);
     return (
-      <ResultsView
-        results={operationResults}
-        onClose={handleClose}
-        onUndo={handleUndo}
-        isLoading={isProcessing}
-      />
+      <ResultsView results={operationResults} onClose={handleClose} onUndo={handleUndo} isLoading={isProcessing} />
     );
   }
 
@@ -240,7 +243,7 @@ export default function ClipboardRenameCommand() {
       isLoading={isLoading || isProcessing}
       actions={
         <ActionPanel>
-          <Action.SubmitForm title="Rename from Clipboard" icon={Icon.Clipboard} onSubmit={handleRename} />
+          <Action.SubmitForm title="Rename From Clipboard" icon={Icon.Clipboard} onSubmit={handleRename} />
           <UndoAction />
         </ActionPanel>
       }
@@ -261,12 +264,7 @@ export default function ClipboardRenameCommand() {
             }
           />
 
-          {status && (
-            <Form.Description
-              title="Status"
-              text={status.message}
-            />
-          )}
+          {status && <Form.Description title="Status" text={status.message} />}
 
           <Form.Checkbox
             id="preserveExtension"

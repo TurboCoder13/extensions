@@ -9,11 +9,9 @@ import {
   Toast,
   confirmAlert,
   Alert,
-  Icon,
   getSelectedFinderItems,
 } from "@raycast/api";
-import path, { basename, dirname, extname } from "path";
-import { statSync } from "fs";
+import path, { dirname } from "path";
 import { getFileInfo, checkConflicts } from "./lib/files";
 import { saveToHistory, undoLastRename } from "./lib/history";
 import { withProgress } from "./lib/progress";
@@ -325,7 +323,12 @@ export default function Command() {
             />
           )}
 
-          <Form.Dropdown id="caseStyle" title="Case Style" value={caseStyle} onChange={(v) => setCaseStyle(v as CaseStyle)}>
+          <Form.Dropdown
+            id="caseStyle"
+            title="Case Style"
+            value={caseStyle}
+            onChange={(v) => setCaseStyle(v as CaseStyle)}
+          >
             {CASE_STYLES.map((style) => (
               <Form.Dropdown.Item key={style} value={style} title={getCaseStyleLabel(style)} />
             ))}

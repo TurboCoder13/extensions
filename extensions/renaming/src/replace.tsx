@@ -12,7 +12,7 @@ import {
   Icon,
   getSelectedFinderItems,
 } from "@raycast/api";
-import path, { basename, dirname } from "path";
+import path, { dirname } from "path";
 import { getFileInfo, checkConflicts } from "./lib/files";
 import { saveToHistory, undoLastRename } from "./lib/history";
 import { withProgress } from "./lib/progress";

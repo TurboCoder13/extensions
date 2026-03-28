@@ -12,13 +12,7 @@ import {
   Form,
   useNavigation,
 } from "@raycast/api";
-import {
-  getPresets,
-  deletePreset,
-  savePreset,
-  DEFAULT_PRESETS,
-  type RenamePreset,
-} from "../lib/presets";
+import { getPresets, deletePreset, savePreset, DEFAULT_PRESETS, type RenamePreset } from "../lib/presets";
 import { getCaseStyleLabel } from "../lib/case-transform";
 import type { CaseStyle } from "../types";
 
