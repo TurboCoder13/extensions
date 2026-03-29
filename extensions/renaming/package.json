@@ -59,11 +59,18 @@
       "title": "Clipboard Rename",
       "description": "Rename files using names from clipboard.",
       "mode": "view"
+    },
+    {
+      "name": "ai-suggest",
+      "title": "AI Smart Rename",
+      "description": "Generate descriptive names using AI.",
+      "mode": "view"
     }
   ],
   "dependencies": {
     "@raycast/api": "^1.65.1",
     "@raycast/utils": "^1.12.5",
+    "exifreader": "^4.36.1",
     "safe-regex": "^2.1.1"
   },
   "devDependencies": {
