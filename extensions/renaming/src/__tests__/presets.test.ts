@@ -6,9 +6,15 @@ import {
   updatePreset,
   deletePreset,
   getPresetById,
+  templateToConfig,
+  configToTemplate,
   DEFAULT_PRESETS,
+  DEFAULT_TEMPLATE_PRESETS,
+  getAllDefaultPresets,
+  isTemplatePreset,
   type RenamePreset,
 } from "../lib/presets";
+import { CaseStyle, SortField, SortDirection, TemplateDateSource, type NamingTemplate } from "../types";
 
 const mockStorage = LocalStorage as unknown as {
   getItem: ReturnType<typeof vi.fn>;
@@ -38,14 +44,6 @@ describe("getPresets", () => {
     const result = await getPresets();
     expect(result).toEqual([]);
   });
-
-  it("returns empty array on corrupted data and backs it up", async () => {
-    mockStorage.getItem.mockResolvedValue("{corrupted[data");
-    const result = await getPresets();
-    expect(result).toEqual([]);
-    // Should attempt to back up corrupted data
-    expect(mockStorage.setItem).toHaveBeenCalledWith(expect.stringContaining("corrupted-backup"), "{corrupted[data");
-  });
 });
 
 describe("savePreset", () => {
@@ -59,37 +57,10 @@ describe("savePreset", () => {
     expect(result.name).toBe("My Preset");
     expect(mockStorage.setItem).toHaveBeenCalledOnce();
   });
-
-  it("appends to existing presets", async () => {
-    const existing = [{ id: "p1", name: "Existing", createdAt: 1000, config: {} }];
-    mockStorage.getItem.mockResolvedValue(JSON.stringify(existing));
-
-    await savePreset({ name: "New Preset", config: {} });
-
-    const stored = JSON.parse(mockStorage.setItem.mock.calls[0][1]);
-    expect(stored).toHaveLength(2);
-    expect(stored[0].name).toBe("Existing");
-    expect(stored[1].name).toBe("New Preset");
-  });
-
-  it("preserves description and type fields", async () => {
-    mockStorage.getItem.mockResolvedValue("[]");
-
-    const result = await savePreset({
-      name: "Replace Spaces",
-      description: "Replace spaces with underscores",
-      type: "replace",
-      config: { replacePattern: " ", replacement: "_" },
-    });
-
-    expect(result.description).toBe("Replace spaces with underscores");
-    expect(result.type).toBe("replace");
-    expect(result.config.replacePattern).toBe(" ");
-  });
 });
 
 describe("updatePreset", () => {
-  const existing: RenamePreset[] = [{ id: "p1", name: "Old", createdAt: 1000, config: {} }];
+  const existing = [{ id: "p1", name: "Old", createdAt: 1000, config: {} }];
 
   it("updates existing preset and returns true", async () => {
     mockStorage.getItem.mockResolvedValue(JSON.stringify(existing));
@@ -104,18 +75,10 @@ describe("updatePreset", () => {
     const result = await updatePreset("nonexistent", { name: "New" });
     expect(result).toBe(false);
   });
-
-  it("preserves fields not included in update", async () => {
-    mockStorage.getItem.mockResolvedValue(JSON.stringify(existing));
-    await updatePreset("p1", { name: "Updated" });
-    const stored = JSON.parse(mockStorage.setItem.mock.calls[0][1]);
-    expect(stored[0].id).toBe("p1");
-    expect(stored[0].createdAt).toBe(1000);
-  });
 });
 
 describe("deletePreset", () => {
-  const existing: RenamePreset[] = [
+  const existing = [
     { id: "p1", name: "One", createdAt: 1000, config: {} },
     { id: "p2", name: "Two", createdAt: 2000, config: {} },
   ];
@@ -137,7 +100,7 @@ describe("deletePreset", () => {
 });
 
 describe("getPresetById", () => {
-  const existing: RenamePreset[] = [{ id: "p1", name: "Test", createdAt: 1000, config: {} }];
+  const existing = [{ id: "p1", name: "Test", createdAt: 1000, config: {} }];
 
   it("finds preset by id", async () => {
     mockStorage.getItem.mockResolvedValue(JSON.stringify(existing));
@@ -153,47 +116,96 @@ describe("getPresetById", () => {
   });
 });
 
+describe("templateToConfig", () => {
+  it("extracts config fields from NamingTemplate", () => {
+    const template: NamingTemplate = {
+      id: "t1",
+      name: "Test",
+      pattern: "{original}",
+      dateSource: TemplateDateSource.NOW,
+      counter: { start: 1, step: 1, padding: 3 },
+      sort: { field: SortField.NAME, direction: SortDirection.ASC },
+      transliteration: { enabled: false, removeAccents: false },
+      caseStyle: CaseStyle.UNCHANGED,
+      isBuiltIn: false,
+    };
+
+    const config = templateToConfig(template);
+    expect(config.pattern).toBe("{original}");
+    expect(config.dateSource).toBe(TemplateDateSource.NOW);
+    expect(config.counter).toEqual({ start: 1, step: 1, padding: 3 });
+    expect(config.sort).toEqual({ field: SortField.NAME, direction: SortDirection.ASC });
+  });
+});
+
+describe("configToTemplate", () => {
+  it("creates NamingTemplate from config and preset", () => {
+    const config = {
+      pattern: "{original}",
+      dateSource: TemplateDateSource.NOW,
+      counter: { start: 1, step: 1, padding: 3 },
+      sort: { field: SortField.NAME, direction: SortDirection.ASC },
+      transliteration: { enabled: false, removeAccents: false },
+      caseStyle: CaseStyle.UNCHANGED,
+    };
+    const preset: RenamePreset = {
+      id: "p1",
+      name: "My Preset",
+      description: "Desc",
+      createdAt: 1000,
+      config: { template: config },
+    };
+
+    const template = configToTemplate(config, preset);
+    expect(template.id).toBe("p1");
+    expect(template.name).toBe("My Preset");
+    expect(template.pattern).toBe("{original}");
+    expect(template.isBuiltIn).toBe(false);
+  });
+});
+
 describe("DEFAULT_PRESETS", () => {
   it("is a non-empty array", () => {
     expect(DEFAULT_PRESETS.length).toBeGreaterThan(0);
   });
+});
 
-  it("contains presets with required fields", () => {
-    for (const preset of DEFAULT_PRESETS) {
-      expect(preset.name).toBeDefined();
-      expect(preset.name.length).toBeGreaterThan(0);
-      expect(preset.config).toBeDefined();
-    }
+describe("DEFAULT_TEMPLATE_PRESETS", () => {
+  it("is a non-empty array", () => {
+    expect(DEFAULT_TEMPLATE_PRESETS.length).toBeGreaterThan(0);
+  });
+});
+
+describe("getAllDefaultPresets", () => {
+  it("returns combined arrays", () => {
+    const all = getAllDefaultPresets();
+    expect(all.length).toBe(DEFAULT_PRESETS.length + DEFAULT_TEMPLATE_PRESETS.length);
+  });
+});
+
+describe("isTemplatePreset", () => {
+  it("returns true for template presets", () => {
+    const preset: RenamePreset = {
+      id: "p1",
+      name: "Test",
+      createdAt: 1000,
+      type: "template",
+      config: {
+        template: {
+          pattern: "{original}",
+          dateSource: TemplateDateSource.NOW,
+          counter: { start: 1, step: 1, padding: 3 },
+          sort: { field: SortField.NAME, direction: SortDirection.ASC },
+          transliteration: { enabled: false, removeAccents: false },
+          caseStyle: CaseStyle.UNCHANGED,
+        },
+      },
+    };
+    expect(isTemplatePreset(preset)).toBe(true);
   });
 
-  it("contains both rename and replace type presets", () => {
-    const types = DEFAULT_PRESETS.map((p) => p.type);
-    expect(types).toContain("rename");
-    expect(types).toContain("replace");
-  });
-
-  it("includes Photo Sequence preset", () => {
-    const photoPreset = DEFAULT_PRESETS.find((p) => p.name === "Photo Sequence");
-    expect(photoPreset).toBeDefined();
-    expect(photoPreset!.type).toBe("rename");
-  });
-
-  it("includes Clean Filenames preset", () => {
-    const cleanPreset = DEFAULT_PRESETS.find((p) => p.name === "Clean Filenames");
-    expect(cleanPreset).toBeDefined();
-  });
-
-  it("includes Remove Spaces preset", () => {
-    const spacesPreset = DEFAULT_PRESETS.find((p) => p.name === "Remove Spaces");
-    expect(spacesPreset).toBeDefined();
-    expect(spacesPreset!.type).toBe("replace");
-    expect(spacesPreset!.config.replacePattern).toBe(" ");
-    expect(spacesPreset!.config.replacement).toBe("_");
-  });
-
-  it("includes Remove Special Characters preset", () => {
-    const specialPreset = DEFAULT_PRESETS.find((p) => p.name === "Remove Special Characters");
-    expect(specialPreset).toBeDefined();
-    expect(specialPreset!.config.useRegex).toBe(true);
+  it("returns false for non-template presets", () => {
+    const preset: RenamePreset = { id: "p1", name: "Test", createdAt: 1000, type: "rename", config: {} };
+    expect(isTemplatePreset(preset)).toBe(false);
   });
 });

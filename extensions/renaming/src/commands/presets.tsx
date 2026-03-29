@@ -12,8 +12,17 @@ import {
   Form,
   useNavigation,
 } from "@raycast/api";
-import { getPresets, deletePreset, savePreset, DEFAULT_PRESETS, type RenamePreset } from "../lib/presets";
+import {
+  getPresets,
+  deletePreset,
+  savePreset,
+  DEFAULT_PRESETS,
+  DEFAULT_TEMPLATE_PRESETS,
+  isTemplatePreset,
+  type RenamePreset,
+} from "../lib/presets";
 import { getCaseStyleLabel } from "../lib/case-transform";
+import { getSortFieldLabel } from "../lib/template/sorting";
 import type { CaseStyle } from "../types";
 
 export default function Command() {
@@ -69,7 +78,9 @@ export default function Command() {
     }
   };
 
-  const handleAddDefault = async (preset: (typeof DEFAULT_PRESETS)[number]) => {
+  const handleAddDefault = async (
+    preset: (typeof DEFAULT_PRESETS)[number] | (typeof DEFAULT_TEMPLATE_PRESETS)[number],
+  ) => {
     try {
       await savePreset(preset);
       await loadPresets();
@@ -88,6 +99,9 @@ export default function Command() {
   };
 
   const getPresetIcon = (preset: RenamePreset): { source: Icon; tintColor: Color } => {
+    if (isTemplatePreset(preset)) {
+      return { source: Icon.Document, tintColor: Color.Purple };
+    }
     if (preset.type === "replace") {
       return { source: Icon.MagnifyingGlass, tintColor: Color.Orange };
     }
@@ -95,6 +109,7 @@ export default function Command() {
   };
 
   const getPresetTypeLabel = (preset: RenamePreset): string => {
+    if (isTemplatePreset(preset)) return "Template";
     if (preset.type === "replace") return "Replace";
     return "Rename";
   };
@@ -110,8 +125,27 @@ export default function Command() {
 
     lines.push("\n---\n");
 
+    // Template presets
+    if (preset.type === "template" && config.template) {
+      const t = config.template;
+      lines.push("### Template Pattern");
+      lines.push(`\`${t.pattern}\``);
+
+      lines.push("\n### Settings");
+      lines.push(`- **Date Source:** ${t.dateSource}`);
+      lines.push(`- **Counter:** Start ${t.counter.start}, Step ${t.counter.step}, Padding ${t.counter.padding}`);
+      if (t.sort.field !== "none") {
+        lines.push(`- **Sort:** ${getSortFieldLabel(t.sort.field)} (${t.sort.direction})`);
+      }
+      if (t.caseStyle !== "unchanged") {
+        lines.push(`- **Case:** ${getCaseStyleLabel(t.caseStyle)}`);
+      }
+      if (t.transliteration.enabled) {
+        lines.push(`- **Transliteration:** Enabled${t.transliteration.removeAccents ? " (remove accents)" : ""}`);
+      }
+    }
     // Replace presets
-    if (preset.type === "replace") {
+    else if (preset.type === "replace") {
       lines.push("### Find & Replace");
       lines.push(`- **Find:** \`${config.replacePattern || ""}\``);
       lines.push(`- **Replace:** \`${config.replacement || ""}\``);
@@ -139,7 +173,8 @@ export default function Command() {
     return lines.join("\n");
   };
 
-  const availablePresets = DEFAULT_PRESETS.filter((dp) => !presets.some((p) => p.name === dp.name));
+  const availableRenamePresets = DEFAULT_PRESETS.filter((dp) => !presets.some((p) => p.name === dp.name));
+  const availableTemplatePresets = DEFAULT_TEMPLATE_PRESETS.filter((dp) => !presets.some((p) => p.name === dp.name));
 
   return (
     <List isLoading={isLoading} isShowingDetail searchBarPlaceholder="Search presets...">
@@ -178,11 +213,11 @@ export default function Command() {
         </List.Section>
       )}
 
-      {availablePresets.length > 0 && (
-        <List.Section title="Default Presets">
-          {availablePresets.map((preset, index) => (
+      {availableRenamePresets.length > 0 && (
+        <List.Section title="Default Rename Presets">
+          {availableRenamePresets.map((preset, index) => (
             <List.Item
-              key={`default-${index}`}
+              key={`rename-${index}`}
               title={preset.name}
               icon={{ source: Icon.Download, tintColor: Color.SecondaryText }}
               accessories={[
@@ -205,13 +240,41 @@ export default function Command() {
         </List.Section>
       )}
 
-      {presets.length === 0 && availablePresets.length === 0 && !isLoading && (
-        <List.EmptyView
-          title="All Presets Added"
-          description="All default presets have been added to your saved presets"
-          icon={Icon.Checkmark}
-        />
+      {availableTemplatePresets.length > 0 && (
+        <List.Section title="Default Template Presets">
+          {availableTemplatePresets.map((preset, index) => (
+            <List.Item
+              key={`template-${index}`}
+              title={preset.name}
+              icon={{ source: Icon.Document, tintColor: Color.Purple }}
+              accessories={[{ tag: { value: "Template", color: Color.Purple } }]}
+              detail={<List.Item.Detail markdown={getPresetDetailMarkdown(preset)} />}
+              actions={
+                <ActionPanel>
+                  <Action title="Add This Preset" icon={Icon.Plus} onAction={() => handleAddDefault(preset)} />
+                  <Action
+                    title="Create New Preset"
+                    icon={Icon.Plus}
+                    shortcut={{ modifiers: ["cmd"], key: "n" }}
+                    onAction={() => push(<CreatePresetForm onSave={loadPresets} />)}
+                  />
+                </ActionPanel>
+              }
+            />
+          ))}
+        </List.Section>
       )}
+
+      {presets.length === 0 &&
+        availableRenamePresets.length === 0 &&
+        availableTemplatePresets.length === 0 &&
+        !isLoading && (
+          <List.EmptyView
+            title="All Presets Added"
+            description="All default presets have been added to your saved presets"
+            icon={Icon.Checkmark}
+          />
+        )}
     </List>
   );
 }

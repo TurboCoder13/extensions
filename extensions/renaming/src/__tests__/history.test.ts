@@ -36,7 +36,7 @@ const mockStorage = LocalStorage as unknown as {
   setItem: ReturnType<typeof vi.fn>;
   removeItem: ReturnType<typeof vi.fn>;
 };
-const mockShowToast = showToast as unknown as ReturnType<typeof vi.fn>;
+const mockShowToast = showToast as ReturnType<typeof vi.fn>;
 const mockRename = mockRenameFn;
 const mockFileExists = mockFileExistsFn;
 

@@ -33,13 +33,13 @@
     {
       "name": "index",
       "title": "Rename File(s)",
-      "description": "Batch rename files with prefix, suffix, numbering, and case transformation.",
+      "description": "Rename file(s) in a batch.",
       "mode": "view"
     },
     {
       "name": "replace",
       "title": "Replace File(s) Characters",
-      "description": "Find and replace characters in filenames with optional regex.",
+      "description": "Replace characters in file(s) names.",
       "mode": "view"
     },
     {
@@ -59,11 +59,24 @@
       "title": "Clipboard Rename",
       "description": "Rename files using names from clipboard.",
       "mode": "view"
+    },
+    {
+      "name": "ai-suggest",
+      "title": "AI Smart Rename",
+      "description": "Generate descriptive names using AI.",
+      "mode": "view"
+    },
+    {
+      "name": "hub",
+      "title": "Renaming",
+      "description": "All renaming tools in one place.",
+      "mode": "view"
     }
   ],
   "dependencies": {
     "@raycast/api": "^1.65.1",
     "@raycast/utils": "^1.12.5",
+    "exifreader": "^4.36.1",
     "safe-regex": "^2.1.1"
   },
   "devDependencies": {

@@ -157,7 +157,7 @@ describe("files", () => {
     });
 
     it("should not flag within-batch conflicts when target is a source being moved", async () => {
-      // Simulates: file-5->file-4, file-6->file-5, file-7->file-6
+      // Simulates: file-5→file-4, file-6→file-5, file-7→file-6
       const file5 = join(testDir, "file-5.txt");
       const file6 = join(testDir, "file-6.txt");
       const file7 = join(testDir, "file-7.txt");
@@ -267,7 +267,7 @@ describe("files", () => {
         await writeFile(join(testDir, `file-${n}.txt`), String(n));
       }
 
-      // Rename: 5->4, 6->5, 7->6
+      // Rename: 5→4, 6→5, 7→6
       const operations: RenameOperation[] = [5, 6, 7].map((n) => ({
         oldPath: join(testDir, `file-${n}.txt`),
         newName: `file-${n - 1}.txt`,
@@ -287,7 +287,7 @@ describe("files", () => {
       expect(await fileExists(join(testDir, "file-7.txt"))).toBe(false);
     });
 
-    it("should handle name swaps (A->B, B->A)", async () => {
+    it("should handle name swaps (A→B, B→A)", async () => {
       const fileA = join(testDir, "alpha.txt");
       const fileB = join(testDir, "beta.txt");
       await writeFile(fileA, "A");

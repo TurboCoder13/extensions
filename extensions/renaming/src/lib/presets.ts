@@ -4,15 +4,15 @@
 
 import { LocalStorage } from "@raycast/api";
 import { log } from "./logger";
-import { CaseStyle } from "../types";
+import { CaseStyle, SortField, SortDirection, TemplateDateSource, type NamingTemplate } from "../types";
 
 export interface RenamePreset {
   id: string;
   name: string;
   description?: string;
   createdAt: number;
-  /** Preset type: 'rename' for basic rename, 'replace' for find/replace */
-  type?: "rename" | "replace";
+  /** Preset type: 'rename' for basic rename, 'replace' for find/replace, 'template' for template-based */
+  type?: "rename" | "replace" | "template";
   config: {
     // Rename command settings
     prefix?: string;
@@ -28,6 +28,63 @@ export interface RenamePreset {
     replacePattern?: string;
     replacement?: string;
     useRegex?: boolean;
+
+    // Template settings
+    template?: TemplateConfig;
+  };
+}
+
+/**
+ * Template configuration stored in presets
+ */
+export interface TemplateConfig {
+  pattern: string;
+  dateSource: TemplateDateSource;
+  counter: {
+    start: number;
+    step: number;
+    padding: number;
+  };
+  sort: {
+    field: SortField;
+    direction: SortDirection;
+  };
+  transliteration: {
+    enabled: boolean;
+    removeAccents: boolean;
+  };
+  caseStyle: CaseStyle;
+}
+
+/**
+ * Convert a NamingTemplate to a TemplateConfig for storage
+ */
+export function templateToConfig(template: NamingTemplate): TemplateConfig {
+  return {
+    pattern: template.pattern,
+    dateSource: template.dateSource,
+    counter: template.counter,
+    sort: template.sort,
+    transliteration: template.transliteration,
+    caseStyle: template.caseStyle,
+  };
+}
+
+/**
+ * Convert a TemplateConfig back to a NamingTemplate
+ */
+export function configToTemplate(config: TemplateConfig, preset: RenamePreset, isBuiltIn = false): NamingTemplate {
+  return {
+    id: preset.id,
+    name: preset.name,
+    description: preset.description,
+    pattern: config.pattern,
+    dateSource: config.dateSource,
+    counter: config.counter,
+    sort: config.sort,
+    transliteration: config.transliteration,
+    caseStyle: config.caseStyle,
+    isBuiltIn,
   };
 }
 
@@ -182,3 +239,68 @@ export const DEFAULT_PRESETS: Omit<RenamePreset, "id" | "createdAt">[] = [
     },
   },
 ];
+
+/**
+ * Default template presets
+ */
+export const DEFAULT_TEMPLATE_PRESETS: Omit<RenamePreset, "id" | "createdAt">[] = [
+  {
+    name: "Photo Date Sequence",
+    description: "Rename photos using EXIF date with sequential numbers",
+    type: "template",
+    config: {
+      template: {
+        pattern: "{exif.dateTaken:YYYY-MM-DD}_{counter:001}",
+        dateSource: TemplateDateSource.EXIF,
+        counter: { start: 1, step: 1, padding: 3 },
+        sort: { field: SortField.DATE_TAKEN, direction: SortDirection.ASC },
+        transliteration: { enabled: false, removeAccents: false },
+        caseStyle: CaseStyle.UNCHANGED,
+      },
+    },
+  },
+  {
+    name: "Document Cleanup",
+    description: "Clean document names with date suffix and snake_case",
+    type: "template",
+    config: {
+      template: {
+        pattern: "{original}_{file.modified:YYYY-MM-DD}",
+        dateSource: TemplateDateSource.MODIFIED,
+        counter: { start: 1, step: 1, padding: 3 },
+        sort: { field: SortField.NAME, direction: SortDirection.ASC },
+        transliteration: { enabled: true, removeAccents: true },
+        caseStyle: CaseStyle.SNAKE_CASE,
+      },
+    },
+  },
+  {
+    name: "Timestamped Backup",
+    description: "Add timestamp for backup/versioning",
+    type: "template",
+    config: {
+      template: {
+        pattern: "{original}_{date:YYYYMMDD}_{time:HHmmss}",
+        dateSource: TemplateDateSource.NOW,
+        counter: { start: 1, step: 1, padding: 3 },
+        sort: { field: SortField.NONE, direction: SortDirection.ASC },
+        transliteration: { enabled: false, removeAccents: false },
+        caseStyle: CaseStyle.UNCHANGED,
+      },
+    },
+  },
+];
+
+/**
+ * Get all presets including template presets
+ */
+export function getAllDefaultPresets(): Omit<RenamePreset, "id" | "createdAt">[] {
+  return [...DEFAULT_PRESETS, ...DEFAULT_TEMPLATE_PRESETS];
+}
+
+/**
+ * Check if a preset is a template preset
+ */
+export function isTemplatePreset(preset: RenamePreset): boolean {
+  return preset.type === "template" && !!preset.config.template;
+}

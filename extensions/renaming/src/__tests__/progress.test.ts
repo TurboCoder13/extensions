@@ -22,8 +22,8 @@ import { showResultToast, withProgress, type BatchOperationResult } from "../lib
 import { batchRename } from "../lib/files";
 import type { RenameResult } from "../types";
 
-const mockShowToast = showToast as unknown as ReturnType<typeof vi.fn>;
-const mockBatchRename = batchRename as unknown as ReturnType<typeof vi.fn>;
+const mockShowToast = showToast as ReturnType<typeof vi.fn>;
+const mockBatchRename = batchRename as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -186,7 +186,7 @@ describe("withProgress", () => {
       expect.objectContaining({
         style: "success",
         title: "Replaced 2 files",
-        message: "Press \u2318Z to undo",
+        message: "Press ⌘Z to undo",
       }),
     );
   });
@@ -209,7 +209,7 @@ describe("withProgress", () => {
     expect(mockShowToast).toHaveBeenCalledWith(
       expect.objectContaining({
         style: "failure",
-        title: "Renamed 1/2 \u2014 1 failed",
+        title: "Renamed 1/2 — 1 failed",
         message: "File locked",
       }),
     );
@@ -229,7 +229,7 @@ describe("withProgress", () => {
     expect(mockShowToast).toHaveBeenCalledWith(
       expect.objectContaining({
         style: "failure",
-        title: "Renamed 0/1 \u2014 1 failed",
+        title: "Renamed 0/1 — 1 failed",
         message: "Disk full",
       }),
     );
