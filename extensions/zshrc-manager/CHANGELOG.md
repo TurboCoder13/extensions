@@ -1,5 +1,9 @@
 # Changelog
 
+## [Fix CI Test Fixtures] - {PR_MERGE_DATE}
+
+- Use an isolated home directory and zshrc file in path validation tests so they also pass on clean CI runners.
+
 ## [1.0.0] - 2025-11-07
 
 ### Added
