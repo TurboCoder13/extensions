@@ -1,0 +1,29 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>lgtm-hq/.github:renovate-config"],
+  "forkProcessing": "enabled",
+  "enabledManagers": ["npm", "github-actions"],
+  "rebaseWhen": "conflicted",
+  "ignorePaths": [
+    "!{extensions/{brew,bunq,renaming,system-monitor,tesla-clips,zshrc-manager}/**,.github/workflows/**}",
+    "**/node_modules/**"
+  ],
+  "packageRules": [
+    {
+      "matchFileNames": ["**"],
+      "enabled": false
+    },
+    {
+      "matchFileNames": [
+        "extensions/brew/**",
+        "extensions/bunq/**",
+        "extensions/renaming/**",
+        "extensions/system-monitor/**",
+        "extensions/tesla-clips/**",
+        "extensions/zshrc-manager/**",
+        ".github/workflows/**"
+      ],
+      "enabled": true
+    }
+  ]
+}

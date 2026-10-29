@@ -8,9 +8,25 @@ import {
   validateZshrcContent,
 } from "../utils/sanitize";
 import { FILE_CONSTANTS } from "../constants";
-import { homedir } from "node:os";
+import { tmpdir } from "node:os";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { afterAll, beforeAll, vi } from "vitest";
 
 describe("sanitize.ts", () => {
+  let homeDir: string;
+
+  beforeAll(async () => {
+    homeDir = await mkdtemp(join(tmpdir(), "zshrc-sanitize-"));
+    vi.stubEnv("HOME", homeDir);
+    await writeFile(join(homeDir, ".zshrc"), "# Test configuration\n");
+  });
+
+  afterAll(async () => {
+    vi.unstubAllEnvs();
+    await rm(homeDir, { recursive: true, force: true });
+  });
+
   describe("sanitizeMarkdown", () => {
     it("should escape backticks", () => {
       const content = "This has `backticks` in it";
@@ -71,8 +87,9 @@ describe("sanitize.ts", () => {
 
   describe("validateFilePath", () => {
     it("should return true for valid file paths", async () => {
-      // Only the exact .zshrc path in home directory should be valid
-      expect(await validateFilePath(`${homedir()}/.zshrc`)).toBe(true);
+      // Reading requires an existing, accessible file in the home directory.
+      expect(await validateFilePath(join(homeDir, ".zshrc"))).toBe(true);
+      expect(await validateFilePath(join(homeDir, "missing.zshrc"))).toBe(false);
       expect(await validateFilePath("~/.zshrc")).toBe(false); // Contains ~
       expect(await validateFilePath("./zshrc")).toBe(false); // Not the exact path
       expect(await validateFilePath("zshrc")).toBe(false); // Not the exact path
@@ -96,8 +113,7 @@ describe("sanitize.ts", () => {
     });
 
     it("should return true for absolute paths in home directory", async () => {
-      // Only the exact .zshrc path in home directory should be valid
-      expect(await validateFilePath(`${homedir()}/.zshrc`)).toBe(true);
+      expect(await validateFilePath(join(homeDir, ".zshrc"))).toBe(true);
       expect(await validateFilePath("/Users/username/.zshrc")).toBe(false); // Not the current user's home
     });
 
@@ -112,10 +128,9 @@ describe("sanitize.ts", () => {
   });
 
   describe("validateFilePathForWrite", () => {
-    it("should allow writing to ~/.zshrc or creating it if missing", async () => {
-      const path = `${homedir()}/.zshrc`;
-      const result = await validateFilePathForWrite(path);
-      expect(result).toBe(true);
+    it("should allow writing to an existing file or creating it if missing", async () => {
+      expect(await validateFilePathForWrite(join(homeDir, ".zshrc"))).toBe(true);
+      expect(await validateFilePathForWrite(join(homeDir, "new.zshrc"))).toBe(true);
     });
 
     it("should reject paths outside home directory", async () => {
